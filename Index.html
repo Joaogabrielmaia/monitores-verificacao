@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Contador de Monitores</title>
+<style>
+:root{--bg:#0f1115;--card:#151923;--text:#e7eaf0;--muted:#a9b0bf;--brand:#6ee7b7;--danger:#ff6b6b;--accent:#7aa2ff}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+.app{max-width:560px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+.header{display:flex;justify-content:space-between;align-items:center}
+.title{font-size:20px;font-weight:700}
+.summary{display:flex;gap:8px;overflow:auto;padding-bottom:2px}
+.chip{background:var(--card);border:1px solid #232836;border-radius:999px;padding:8px 12px;font-size:14px;white-space:nowrap}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tab{padding:12px;border-radius:12px;background:#151a24;border:1px solid #232836;color:var(--muted);font-weight:700}
+.tab.active{background:linear-gradient(180deg,#1b2230,#121622);color:var(--text);border-color:#2c3344;box-shadow:0 0 0 1px #2c3344 inset}
+.card{background:var(--card);border:1px solid #232836;border-radius:16px;padding:16px}
+.floor-label{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:14px}
+.counter{font-size:64px;line-height:1;font-weight:800;letter-spacing:1px;text-align:center;margin:8px 0 4px}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px}
+.btn{padding:14px 12px;border-radius:14px;border:1px solid #2c3344;background:#101522;color:var(--text);font-size:16px;font-weight:800}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:linear-gradient(180deg,#1a2b20,#0f1a13);border-color:#1f3c2e}
+.btn.primary .big{color:var(--brand)}
+.btn.warning{background:linear-gradient(180deg,#2a1c1c,#181013);border-color:#3a2525}
+.btn.warning .big{color:var(--danger)}
+.btn.secondary{background:linear-gradient(180deg,#151b29,#0f1420);border-color:#26324a}
+.btn.secondary .big{color:var(--accent)}
+.big{font-size:20px;font-weight:900;display:block}
+.note{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+.footer{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
+.total{font-weight:800;color:var(--text)}
+@media (hover:hover){.btn:hover{filter:brightness(1.05)}}
+.safe{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:6px}
+.safe input{accent-color:#2bd499}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="title">Contador de Monitores</div>
+    <div class="total">Total: <span id="totalAll">0</span></div>
+  </div>
+
+  <div class="summary" id="chips"></div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="card">
+    <div class="floor-label">
+      <span id="floorName">Andar</span>
+      <button id="resetBtn" class="btn warning" style="padding:8px 12px;font-weight:700"><span class="big">Zerar</span></button>
+    </div>
+    <div class="counter" id="count">0</div>
+    <div class="controls">
+      <button id="minusBtn" class="btn secondary"><span class="big">–1</span>Remover</button>
+      <button id="plusBtn" class="btn primary"><span class="big">+1</span>Adicionar</button>
+      <button id="zeroBtn" class="btn warning"><span class="big">0</span>Definir 0</button>
+    </div>
+    <div class="safe">
+      <input type="checkbox" id="confirmReset" />
+      <label for="confirmReset">Pedir confirmação ao zerar</label>
+    </div>
+    <div class="note">Salva automático no aparelho. Pode fechar o app sem perder os números.</div>
+  </div>
+
+  <div class="footer">
+    <span>Andares: 3º • 4º • 5º</span>
+    <span>v1.0</span>
+  </div>
+</div>
+
+<script>
+const FLOORS=[3,4,5]
+const KEY=f=>monitors-floor-${f}
+const $=sel=>document.querySelector(sel)
+const chips=$('#chips')
+const tabs=$('#tabs')
+const countEl=$('#count')
+const floorName=$('#floorName')
+const totalAllEl=$('#totalAll')
+const plusBtn=$('#plusBtn')
+const minusBtn=$('#minusBtn')
+const zeroBtn=$('#zeroBtn')
+const resetBtn=$('#resetBtn')
+const confirmReset=$('#confirmReset')
+let currentFloor=FLOORS[0]
+let state={}
+function loadState(){
+  FLOORS.forEach(f=>{
+    const v=localStorage.getItem(KEY(f))
+    state[f]=Number.isFinite(+v)?parseInt(v,10):0
+  })
+}
+function saveFloor(f){
+  localStorage.setItem(KEY(f),String(state[f]))
+  renderChips()
+  renderTotal()
+}
+function setFloor(f){
+  currentFloor=f
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.f===f))
+  floorName.textContent=${f}º andar
+  updateCounter()
+}
+function updateCounter(){
+  const v=state[currentFloor]||0
+  countEl.textContent=v
+  minusBtn.disabled=v<=0
+}
+function renderTabs(){
+  tabs.innerHTML=''
+  FLOORS.forEach(f=>{
+    const b=document.createElement('button')
+    b.className='tab'
+    b.dataset.f=f
+    b.textContent=${f}º andar
+    b.addEventListener('click',()=>setFloor(f))
+    tabs.appendChild(b)
+  })
+}
+function renderChips(){
+  chips.innerHTML=''
+  FLOORS.forEach(f=>{
+    const c=document.createElement('div')
+    c.className='chip'
+    c.textContent=${f}º: ${state[f]||0}
+    chips.appendChild(c)
+  })
+}
+function renderTotal(){
+  const t=FLOORS.reduce((s,f)=>s+(state[f]||0),0)
+  totalAllEl.textContent=t
+}
+function inc(n){
+  state[currentFloor]=(state[currentFloor]||0)+n
+  if(state[currentFloor]<0) state[currentFloor]=0
+  saveFloor(currentFloor)
+  updateCounter()
+}
+function zeroFloor(){
+  if(confirmReset.checked){
+    const ok=confirm(Zerar o ${currentFloor}º andar?)
+    if(!ok) return
+  }
+  state[currentFloor]=0
+  saveFloor(currentFloor)
+  updateCounter()
+}
+function resetAll(){
+  if(!confirm('Zerar TODOS os andares?'))return
+  FLOORS.forEach(f=>{state[f]=0;saveFloor(f)})
+  updateCounter()
+}
+plusBtn.addEventListener('click',()=>inc(1))
+minusBtn.addEventListener('click',()=>inc(-1))
+zeroBtn.addEventListener('click',zeroFloor)
+resetBtn.addEventListener('click',resetAll)
+loadState()
+renderTabs()
+renderChips()
+renderTotal()
+setFloor(currentFloor)
+</script>
+</body>
+</html>
